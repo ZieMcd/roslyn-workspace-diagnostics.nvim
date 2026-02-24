@@ -1,0 +1,193 @@
+local M = {}
+
+local result_ids = {}
+
+local protocol = require("vim.lsp.protocol")
+local lsp = require("vim.lsp")
+
+--- @param diagnostic lsp.Diagnostic
+--- @param client_id integer
+--- @return table?
+local function tags_lsp_to_vim(diagnostic, client_id)
+	local tags ---@type table?
+	for _, tag in ipairs(diagnostic.tags or {}) do
+		if tag == protocol.DiagnosticTag.Unnecessary then
+			tags = tags or {}
+			tags.unnecessary = true
+		elseif tag == protocol.DiagnosticTag.Deprecated then
+			tags = tags or {}
+			tags.deprecated = true
+		else
+			lsp.log.info(string.format("Unknown DiagnosticTag %d from LSP client %d", tag, client_id))
+		end
+	end
+	return tags
+end
+
+---@param severity lsp.DiagnosticSeverity
+---@return vim.diagnostic.Severity
+local function severity_lsp_to_vim(severity)
+	if type(severity) == "string" then
+		return protocol.DiagnosticSeverity[severity] --[[@as vim.diagnostic.Severity]]
+	end
+	return severity
+end
+
+---@param bufnr integer
+---@return string[]|nil
+local function get_buf_lines(bufnr)
+	if not vim.api.nvim_buf_is_loaded(bufnr) then
+		return nil
+	end
+	return vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+end
+
+---@param diagnostics lsp.Diagnostic[]
+---@param bufnr integer
+---@param client_id integer
+---@return vim.Diagnostic.Set[]
+local function diagnostic_lsp_to_vim(diagnostics, bufnr, client_id)
+	local buf_lines = get_buf_lines(bufnr)
+	local client = lsp.get_client_by_id(client_id)
+	local position_encoding = client and client.offset_encoding or "utf-16"
+	--- @param diagnostic lsp.Diagnostic
+	--- @return vim.Diagnostic.Set
+	return vim.tbl_map(function(diagnostic)
+		local start = diagnostic.range.start
+		local _end = diagnostic.range["end"]
+		local message = diagnostic.message
+		if type(message) ~= "string" then
+			vim.notify_once(
+				string.format("Unsupported Markup message from LSP client %d", client_id),
+				lsp.log_levels.ERROR
+			)
+			--- @diagnostic disable-next-line: undefined-field,no-unknown
+			message = diagnostic.message.value
+		end
+		local line = buf_lines and buf_lines[start.line + 1] or ""
+		local end_line = line
+		if _end.line > start.line then
+			end_line = buf_lines and buf_lines[_end.line + 1] or ""
+		end
+		--- @type vim.Diagnostic.Set
+		return {
+			lnum = start.line,
+			col = vim.str_byteindex(line, position_encoding, start.character, false),
+			end_lnum = _end.line,
+			end_col = vim.str_byteindex(end_line, position_encoding, _end.character, false),
+			severity = severity_lsp_to_vim(diagnostic.severity),
+			message = message,
+			source = diagnostic.source,
+			code = diagnostic.code,
+			_tags = tags_lsp_to_vim(diagnostic, client_id),
+			user_data = {
+				lsp = diagnostic,
+			},
+		}
+	end, diagnostics)
+end
+
+--- @param uri string
+--- @param client_id? integer
+--- @param diagnostics lsp.Diagnostic[]
+--- @param is_pull boolean
+local function handle_diagnostics(uri, client_id, diagnostics, is_pull)
+	local fname = vim.uri_to_fname(uri)
+
+	if #diagnostics == 0 and vim.fn.bufexists(fname) == 0 then
+		return
+	end
+
+	local bufnr = vim.fn.bufadd(fname)
+	if not bufnr then
+		return
+	end
+
+	local namespace = vim.lsp.diagnostic.get_namespace(client_id, is_pull)
+
+	vim.diagnostic.set(namespace, bufnr, diagnostic_lsp_to_vim(diagnostics, bufnr, client_id))
+end
+
+---@param err any
+---@param doc_report table
+---@param ctx table
+function M.handle(err, doc_report, ctx, _)
+	if err or not doc_report then
+		return
+	end
+
+	if doc_report.resultId then
+		result_ids[ctx.client_id] = result_ids[ctx.client_id] or {}
+		result_ids[ctx.client_id][doc_report.uri] = doc_report.resultId
+	end
+
+	if doc_report.kind == "unchanged" then
+		return
+	end
+
+	local bufnr = vim.uri_to_bufnr(doc_report.uri)
+	local ns = vim.lsp.diagnostic.get_namespace(ctx.client_id)
+	local diagnostics = M.lsp_to_vim(doc_report.items, bufnr, ctx.client_id)
+	vim.diagnostic.set(ns, bufnr, diagnostics)
+end
+
+local log_bufnr = nil
+
+local function get_log_buf()
+	if log_bufnr and vim.api.nvim_buf_is_valid(log_bufnr) then
+		return log_bufnr
+	end
+	log_bufnr = vim.api.nvim_create_buf(true, true)
+	vim.api.nvim_buf_set_name(log_bufnr, "sharpies://diagnostics")
+	vim.bo[log_bufnr].filetype = "lua"
+	vim.bo[log_bufnr].buftype = "nofile"
+	return log_bufnr
+end
+
+---@param err any
+---@param result table
+---@param ctx table
+function M.handle_workspace_result(err, result, ctx, _)
+	if not result or not result.items then
+		return
+	end
+
+	local buf = get_log_buf()
+	local lines = {}
+	for _, doc_report in ipairs(result.items) do
+		-- table.insert(lines, string.format("-- %s [%s]", doc_report.uri, doc_report.kind))
+		-- if doc_report.kind == "full" then
+		-- 	for _, item in ipairs(doc_report.items) do
+		-- 		table.insert(lines, string.format(
+		-- 			"  [%s] L%d:%d %s",
+		-- 			item.severity == 1 and "ERROR" or item.severity == 2 and "WARN" or item.severity == 3 and "INFO" or "HINT",
+		-- 			item.range.start.line + 1,
+		-- 			item.range.start.character,
+		-- 			item.message
+		-- 		))
+		-- 	end
+		-- end
+		handle_diagnostics(doc_report.uri, ctx.client_id, doc_report.items, true)
+	end
+
+	-- vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+	-- open the buffer if it's not already visible
+	-- local wins = vim.fn.win_findbuf(buf)
+	-- if #wins == 0 then
+	-- 	vim.cmd("botright split")
+	-- 	vim.api.nvim_win_set_buf(0, buf)
+	-- end
+end
+
+---@param client_id integer
+---@return table[]
+function M.build_previous_result_ids(client_id)
+	local previous = {}
+	for uri, value in pairs(result_ids[client_id] or {}) do
+		table.insert(previous, { uri = uri, value = value })
+	end
+	return previous
+end
+
+return M
