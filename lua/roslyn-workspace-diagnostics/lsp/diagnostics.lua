@@ -1,3 +1,5 @@
+-- a lot this is copied from https://github.com/neovim/neovim/blob/master/runtime/lua/vim/lsp/diagnostic.lua
+-- I need some of the private method in that file
 local M = {}
 
 local result_ids = {}
@@ -131,19 +133,6 @@ function M.handle(err, doc_report, ctx, _)
 	vim.diagnostic.set(ns, bufnr, diagnostics)
 end
 
-local log_bufnr = nil
-
-local function get_log_buf()
-	if log_bufnr and vim.api.nvim_buf_is_valid(log_bufnr) then
-		return log_bufnr
-	end
-	log_bufnr = vim.api.nvim_create_buf(true, true)
-	vim.api.nvim_buf_set_name(log_bufnr, "sharpies://diagnostics")
-	vim.bo[log_bufnr].filetype = "lua"
-	vim.bo[log_bufnr].buftype = "nofile"
-	return log_bufnr
-end
-
 ---@param err any
 ---@param result table
 ---@param ctx table
@@ -152,32 +141,25 @@ function M.handle_workspace_result(err, result, ctx, _)
 		return
 	end
 
-	local buf = get_log_buf()
-	local lines = {}
 	for _, doc_report in ipairs(result.items) do
-		-- table.insert(lines, string.format("-- %s [%s]", doc_report.uri, doc_report.kind))
-		-- if doc_report.kind == "full" then
-		-- 	for _, item in ipairs(doc_report.items) do
-		-- 		table.insert(lines, string.format(
-		-- 			"  [%s] L%d:%d %s",
-		-- 			item.severity == 1 and "ERROR" or item.severity == 2 and "WARN" or item.severity == 3 and "INFO" or "HINT",
-		-- 			item.range.start.line + 1,
-		-- 			item.range.start.character,
-		-- 			item.message
-		-- 		))
-		-- 	end
-		-- end
-		handle_diagnostics(doc_report.uri, ctx.client_id, doc_report.items, true)
+		if doc_report.resultId then
+			result_ids[ctx.client_id] = result_ids[ctx.client_id] or {}
+			result_ids[ctx.client_id][doc_report.uri] = doc_report.resultId
+		end
+		if doc_report.kind ~= "unchanged" then
+			handle_diagnostics(doc_report.uri, ctx.client_id, doc_report.items, true)
+		end
 	end
+end
 
-	-- vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-
-	-- open the buffer if it's not already visible
-	-- local wins = vim.fn.win_findbuf(buf)
-	-- if #wins == 0 then
-	-- 	vim.cmd("botright split")
-	-- 	vim.api.nvim_win_set_buf(0, buf)
-	-- end
+---@param client_id integer
+---@param uri string
+---@return string|nil
+function M.get_result_id(client_id, uri)
+	if result_ids[client_id] then
+		return result_ids[client_id][uri]
+	end
+	return nil
 end
 
 ---@param client_id integer
