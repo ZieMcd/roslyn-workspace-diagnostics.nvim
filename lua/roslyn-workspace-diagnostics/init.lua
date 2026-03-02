@@ -26,40 +26,46 @@ end
 local function register_autocmds()
 	vim.api.nvim_create_autocmd("LspNotify", {
 		callback = function(args)
-			if args.data.method ~= "textDocument/didChange" then
+			local client_id = args.data.client_id
+			local client = vim.lsp.get_client_by_id(client_id)
+			if not client or not vim.tbl_contains(config.options.roslyn_alias, client.name) then
 				return
 			end
 
-			local client = vim.lsp.get_client_by_id(args.data.client_id)
-			if not client then
+			if args.data.method == "textDocument/didOpen" then
+				diagnostics.track_open(client_id, args.data.params.textDocument.uri)
 				return
 			end
 
-			if not vim.tbl_contains(config.options.roslyn_alias, client.name) then
+			if args.data.method == "textDocument/didClose" then
+				diagnostics.track_close(client_id, args.data.params.textDocument.uri)
 				return
 			end
 
-			local prev_reqeust = pending_requests[args.data.client_id]
-			if prev_reqeust then
-				client:cancel_request(prev_reqeust.request_id)
-				active_tokens[prev_reqeust.token] = nil
+			-- every time we update
+			if args.data.method == "textDocument/didChange" then
+				local prev_reqeust = pending_requests[client_id]
+				if prev_reqeust then
+					client:cancel_request(prev_reqeust.request_id)
+					active_tokens[prev_reqeust.token] = nil
+				end
+
+				local token = "roslyn-workspace-pull-" .. vim.uv.hrtime()
+				active_tokens[token] = true
+
+				local _, request_id = client:request("workspace/diagnostic", {
+					previousResultIds = diagnostics.build_previous_result_ids(client_id),
+					-- for now will only call diagnostics for WorkspaceDocumentsAndProject since it is bulk of diagnostic. In future can call diagnostics for for other types
+					identifier = diagnostics_identifier.WorkspaceDocumentsAndProject,
+					partialResultToken = token,
+				}, function(err, result, ctx, _)
+					pending_requests[client_id] = nil
+					active_tokens[token] = nil
+					diagnostics.handle_workspace_result(err, result, ctx, _)
+				end)
+
+				pending_requests[client_id] = { request_id = request_id, token = token }
 			end
-
-			local token = "roslyn-workspace-pull-" .. vim.uv.hrtime()
-			active_tokens[token] = true
-
-			local _, request_id = client:request("workspace/diagnostic", {
-				previousResultIds = diagnostics.build_previous_result_ids(args.data.client_id),
-				-- for now will only call diagnostics for WorkspaceDocumentsAndProject since it is bulk of diagnostic. In future can call diagnostics for for other types
-				identifier = diagnostics_identifier.WorkspaceDocumentsAndProject,
-				partialResultToken = token,
-			}, function(err, result, ctx, _)
-				pending_requests[args.data.client_id] = nil
-				active_tokens[token] = nil
-				diagnostics.handle_workspace_result(err, result, ctx, _)
-			end)
-
-			pending_requests[args.data.client_id] = { request_id = request_id, token = token }
 		end,
 	})
 end
@@ -72,21 +78,6 @@ function M.setup(opts)
 	if config.options.csproj_watcher.enabled then
 		watcher.start()
 	end
-
-	vim.keymap.set("n", "<leader>pd", function()
-		local clients = vim.lsp.get_clients({ bufnr = 0 })
-		for _, client in ipairs(clients) do
-			if vim.tbl_contains(config.options.roslyn_alias, client.name) then
-				local result_ids = diagnostics.build_previous_result_ids(client.id)
-				local lines = vim.split(vim.inspect(result_ids), "\n")
-				local buf = vim.api.nvim_create_buf(false, true)
-				vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-				vim.cmd.sbuffer(buf)
-				return
-			end
-		end
-		vim.notify("roslyn client not found", vim.log.levels.WARN)
-	end)
 end
 
 return M

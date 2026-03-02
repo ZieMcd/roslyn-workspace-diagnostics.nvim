@@ -1,8 +1,13 @@
 -- a lot this is copied from https://github.com/neovim/neovim/blob/master/runtime/lua/vim/lsp/diagnostic.lua
--- I need some of the private method in that file
+-- I need some of the private method in that file for setting diagnostics
 local M = {}
 
 local result_ids = {}
+
+-- Tracking open files is a bit of hack.
+-- Their is a bit of weird behaviour when handling workspace diagnostics for open files, this is probably because neovim it self makes request for open files
+---@type table<integer, table<string, boolean>>
+M.open_files = {}
 
 local protocol = require("vim.lsp.protocol")
 local lsp = require("vim.lsp")
@@ -90,7 +95,7 @@ local function diagnostic_lsp_to_vim(diagnostics, bufnr, client_id)
 end
 
 --- @param uri string
---- @param client_id? integer
+--- @param client_id integer
 --- @param diagnostics lsp.Diagnostic[]
 --- @param is_pull boolean
 local function handle_diagnostics(uri, client_id, diagnostics, is_pull)
@@ -146,7 +151,10 @@ function M.handle_workspace_result(err, result, ctx, _)
 			result_ids[ctx.client_id] = result_ids[ctx.client_id] or {}
 			result_ids[ctx.client_id][doc_report.uri] = doc_report.resultId
 		end
-		if doc_report.kind ~= "unchanged" then
+		-- local is_open = M.open_files[ctx.client_id] and M.open_files[ctx.client_id][doc_report.uri]
+		if
+			doc_report.kind ~= "unchanged" --[[ and not is_open ]]
+		then
 			handle_diagnostics(doc_report.uri, ctx.client_id, doc_report.items, true)
 		end
 	end
@@ -166,10 +174,30 @@ end
 ---@return table[]
 function M.build_previous_result_ids(client_id)
 	local previous = {}
+	local open = M.open_files[client_id] or {}
 	for uri, value in pairs(result_ids[client_id] or {}) do
-		table.insert(previous, { uri = uri, value = value })
+		if not open[uri] then
+			table.insert(previous, { uri = uri, value = value })
+		end
 	end
 	return previous
+end
+
+---@param client_id integer
+---@param uri string
+function M.track_open(client_id, uri)
+	if not M.open_files[client_id] then
+		M.open_files[client_id] = {}
+	end
+	M.open_files[client_id][uri] = true
+end
+
+---@param client_id integer
+---@param uri string
+function M.track_close(client_id, uri)
+	if M.open_files[client_id] then
+		M.open_files[client_id][uri] = nil
+	end
 end
 
 return M
