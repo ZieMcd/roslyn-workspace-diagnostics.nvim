@@ -33,12 +33,12 @@ local function register_autocmds()
 			end
 
 			if args.data.method == "textDocument/didOpen" then
-				diagnostics.track_open(client_id, args.data.params.textDocument.uri)
+				diagnostics._track_open(client_id, args.data.params.textDocument.uri)
 				return
 			end
 
 			if args.data.method == "textDocument/didClose" then
-				diagnostics.track_close(client_id, args.data.params.textDocument.uri)
+				diagnostics._track_close(client_id, args.data.params.textDocument.uri)
 				return
 			end
 
@@ -54,7 +54,7 @@ local function register_autocmds()
 				active_tokens[token] = true
 
 				local _, request_id = client:request("workspace/diagnostic", {
-					previousResultIds = diagnostics.build_previous_result_ids(client_id),
+					previousResultIds = diagnostics._build_previous_result_ids(client_id),
 					-- for now will only call diagnostics for WorkspaceDocumentsAndProject since it is bulk of diagnostic. In future can call diagnostics for for other types
 					identifier = diagnostics_identifier.WorkspaceDocumentsAndProject,
 					partialResultToken = token,

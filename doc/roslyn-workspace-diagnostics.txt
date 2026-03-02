@@ -1,0 +1,126 @@
+*roslyn-workspace-diagnostics.txt*  Workspace diagnostics for Roslyn in Neovim
+
+==============================================================================
+CONTENTS                          *roslyn-workspace-diagnostics-contents*
+
+  1. Introduction .............. |roslyn-workspace-diagnostics-introduction|
+  2. Requirements .............. |roslyn-workspace-diagnostics-requirements|
+  3. Setup ..................... |roslyn-workspace-diagnostics-setup|
+  4. Configuration ............. |roslyn-workspace-diagnostics-configuration|
+  5. Csproj Watcher ............ |roslyn-workspace-diagnostics-watcher|
+
+==============================================================================
+1. INTRODUCTION                   *roslyn-workspace-diagnostics-introduction*
+
+This plugin implements auto-pulling of workspace diagnostics for Microsoft's
+Roslyn LSP server. By default Neovim only pulls diagnostics for open buffers.
+This plugin sends `workspace/diagnostic` requests on every file change so you
+get errors and warnings across your entire project.
+
+Partial results are handled via `$/progress` so diagnostics arrive
+incrementally.
+
+==============================================================================
+2. REQUIREMENTS                   *roslyn-workspace-diagnostics-requirements*
+
+- A Roslyn-based LSP client such as:
+  - easy-dotnet.nvim (https://github.com/GustavEikaas/easy-dotnet.nvim)
+  - roslyn.nvim (https://github.com/seblyng/roslyn.nvim)
+  - roslyn_ls from nvim-lspconfig
+
+  If you have configured the LSP under a different name, add it to
+  |roslyn-workspace-diagnostics-roslyn_alias|.
+
+- Nightly Neovim is recommended. As of writing, Neovim does not
+  refresh diagnostics for open buffers only the current buffer. My This plugin
+  will also not fetch diagnostics for open buffer/files only un opened files
+
+==============================================================================
+3. SETUP                          *roslyn-workspace-diagnostics-setup*
+
+Using lazy.nvim: >lua
+  {
+    "ziemcd/roslyn-workspace-diagnostics.nvim",
+    opts = {},
+  }
+<
+
+Or call setup manually: >lua
+  require("roslyn-workspace-diagnostics").setup({})
+<
+
+==============================================================================
+4. CONFIGURATION                  *roslyn-workspace-diagnostics-configuration*
+
+Pass options to `setup()`: >lua
+  require("roslyn-workspace-diagnostics").setup({
+    enabled = true,
+    roslyn_alias = { "easy_dotnet", "roslyn_ls", "roslyn" },
+    csproj_watcher = {
+      enabled = false,
+      find_csproj_files = nil,
+    },
+  })
+<
+                                  *roslyn-workspace-diagnostics-roslyn_alias*
+roslyn_alias ~
+  Type: `string[]`, Default: `{ "easy_dotnet", "roslyn_ls", "roslyn" }`
+  List of LSP client names to treat as Roslyn. The plugin only sends
+  workspace diagnostic requests to clients whose name appears in this list.
+
+                                  *roslyn-workspace-diagnostics-csproj_watcher*
+csproj_watcher ~
+  Type: `table`
+  Configuration for the `.csproj` file watcher. See
+  |roslyn-workspace-diagnostics-watcher|.
+
+  enabled ~
+    Type: `boolean`, Default: `false`
+    Enable watching `.csproj` files.
+
+  find_csproj_files ~
+    Type: `fun(path: string): string[]` or `nil`
+    Optional function to discover `.csproj` files. Receives the current
+    working directory and should return a list of file paths. When `nil`,
+    a built-in scanner is used that recursively searches the cwd, skipping
+    `bin`, `obj`, and `.git` directories.
+
+==============================================================================
+5. CSPROJ WATCHER                 *roslyn-workspace-diagnostics-watcher*
+
+When `csproj_watcher.enabled` is `true`, the plugin uses libuv file watchers
+to monitor `.csproj` files. When a file changes (e.g. after adding or
+removing a NuGet package), it sends a `workspace/didChangeWatchedFiles`
+notification to Roslyn so diagnostics update without restarting the LSP.
+
+The watcher module exposes methods for runtime control:
+
+watcher.start()                   *roslyn-workspace-diagnostics-watcher.start*
+  Discover and start watching all `.csproj` files in the workspace.
+  Called automatically on setup when `csproj_watcher.enabled` is `true`.
+
+watcher.stop()                    *roslyn-workspace-diagnostics-watcher.stop*
+  Stop all active file watchers.
+
+watcher.watch_file({path})    *roslyn-workspace-diagnostics-watcher.watch_file*
+  Start watching an individual file. Skips if the file is already watched.
+
+  Parameters: ~
+    {path}  `string`  Absolute path to the file.
+
+watcher.unwatch_file({path})
+                              *roslyn-workspace-diagnostics-watcher.unwatch_file*
+  Stop watching an individual file.
+
+  Parameters: ~
+    {path}  `string`  Absolute path to the file.
+
+Example: >lua
+  local watcher = require("roslyn-workspace-diagnostics.lsp.watcher")
+
+  watcher.watch_file("/path/to/file.csproj")
+  watcher.unwatch_file("/path/to/file.csproj")
+<
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

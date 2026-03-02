@@ -9,7 +9,6 @@ local M = {}
 ---@field enabled boolean
 ---@field find_csproj_files? fun(path: string): string[]
 M.defaults = {
-	enabled = true,
 	roslyn_alias = { "easy_dotnet", "roslyn_ls", "roslyn" },
 	csproj_watcher = {
 		enabled = false,

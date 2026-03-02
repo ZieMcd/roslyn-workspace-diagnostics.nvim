@@ -1,0 +1,13 @@
+roslyn-workspace-diagnostics-configuration	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-configuration*
+roslyn-workspace-diagnostics-contents	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-contents*
+roslyn-workspace-diagnostics-csproj_watcher	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-csproj_watcher*
+roslyn-workspace-diagnostics-introduction	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-introduction*
+roslyn-workspace-diagnostics-requirements	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-requirements*
+roslyn-workspace-diagnostics-roslyn_alias	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-roslyn_alias*
+roslyn-workspace-diagnostics-setup	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-setup*
+roslyn-workspace-diagnostics-watcher	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-watcher*
+roslyn-workspace-diagnostics-watcher.start	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-watcher.start*
+roslyn-workspace-diagnostics-watcher.stop	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-watcher.stop*
+roslyn-workspace-diagnostics-watcher.unwatch_file	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-watcher.unwatch_file*
+roslyn-workspace-diagnostics-watcher.watch_file	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics-watcher.watch_file*
+roslyn-workspace-diagnostics.txt	roslyn-workspace-diagnostics.txt	/*roslyn-workspace-diagnostics.txt*
