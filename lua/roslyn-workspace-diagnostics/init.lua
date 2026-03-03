@@ -46,7 +46,8 @@ local function register_autocmds()
 			if args.data.method == "textDocument/didChange" then
 				local prev_reqeust = pending_requests[client_id]
 				if prev_reqeust then
-					client:cancel_request(prev_reqeust.request_id)
+					-- -- for some reason cancelling the request was causing some odd behaviour.
+					-- client:cancel_request(prev_reqeust.request_id)
 					active_tokens[prev_reqeust.token] = nil
 				end
 
