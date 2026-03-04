@@ -14,11 +14,14 @@ CONTENTS                          *roslyn-workspace-diagnostics-contents*
 
 This plugin implements auto-pulling of workspace diagnostics for Microsoft's
 Roslyn LSP server. By default Neovim only pulls diagnostics for open buffers.
-This plugin sends `workspace/diagnostic` requests on every file change so you
-get errors and warnings across your entire project.
+This plugin polls Roslyn with `workspace/diagnostic` requests every 2 seconds
+so you get errors and warnings across your entire project.
+
+The impenations tries to mimic vs code's implementation.
 
 Partial results are handled via `$/progress` so diagnostics arrive
-incrementally.
+incrementally. Open files are excluded from workspace pulls to avoid
+conflicts with Neovim's built-in per-buffer diagnostics.
 
 ==============================================================================
 2. REQUIREMENTS                   *roslyn-workspace-diagnostics-requirements*

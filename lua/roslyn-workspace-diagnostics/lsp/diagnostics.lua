@@ -53,7 +53,7 @@ end
 ---@param bufnr integer
 ---@param client_id integer
 ---@return vim.Diagnostic.Set[]
-local function diagnostic_lsp_to_vim(diagnostics, bufnr, client_id)
+function M.lsp_to_vim(diagnostics, bufnr, client_id)
 	local buf_lines = get_buf_lines(bufnr)
 	local client = lsp.get_client_by_id(client_id)
 	local position_encoding = client and client.offset_encoding or "utf-16"
@@ -112,7 +112,7 @@ local function handle_diagnostics(uri, client_id, diagnostics, is_pull)
 
 	local namespace = vim.lsp.diagnostic.get_namespace(client_id, is_pull)
 
-	vim.diagnostic.set(namespace, bufnr, diagnostic_lsp_to_vim(diagnostics, bufnr, client_id))
+	vim.diagnostic.set(namespace, bufnr, M.lsp_to_vim(diagnostics, bufnr, client_id))
 end
 
 ---@param err any
@@ -198,6 +198,11 @@ function M._track_close(client_id, uri)
 	if open_files[client_id] then
 		open_files[client_id][uri] = nil
 	end
+end
+
+---@param client_id integer
+function M._reset_result_ids(client_id)
+	result_ids[client_id] = {}
 end
 
 return M
