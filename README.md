@@ -1,6 +1,6 @@
 # roslyn-workspace-diagnostics.nvim
 
-This plugin aims in a somewhat hacky way to implement auto pulling of workspace diagnostics for Microsoft's new [Roslyn LSP](https://github.com/dotnet/roslyn/tree/main/src/LanguageServer) used in the [Visual Studio Code C# Extension](https://github.com/dotnet/vscode-csharp). 
+This plugin aims in a somewhat hacky way to implement auto pulling of workspace diagnostics for Microsoft's new [Roslyn LSP](https://github.com/dotnet/roslyn/tree/main/src/LanguageServer/Microsoft.CodeAnalysis.LanguageServer) used in the [Visual Studio Code C# Extension](https://github.com/dotnet/vscode-csharp). 
 
 In theory it should not be to difficult to get this to work with other LSPs that implement workspace diagnostics, if there is any interest we could make it more open.
 
