@@ -44,15 +44,24 @@ local function notify_file_changed(file_path)
 end
 
 function M.start()
-	M.stop()
+	vim.api.nvim_create_autocmd("LspAttach", {
+		callback = function(args)
+			local client = vim.lsp.get_client_by_id(args.data.client_id)
+			if not client or not vim.tbl_contains(config.options.roslyn_alias, client.name) then
+				return
+			end
 
-	local cwd = vim.fn.getcwd()
-	local find_fn = config.options.csproj_watcher.find_csproj_files or default_find_csproj_files
-	local csproj_files = find_fn(cwd)
+			M.stop()
 
-	for _, file_path in ipairs(csproj_files) do
-		M.watch_file(file_path)
-	end
+			local cwd = vim.fn.getcwd()
+			local find_fn = config.options.csproj_watcher.find_csproj_files or default_find_csproj_files
+			local csproj_files = find_fn(cwd)
+
+			for _, file_path in ipairs(csproj_files) do
+				M.watch_file(file_path)
+			end
+		end,
+	})
 end
 
 ---@param file_path string
