@@ -1,5 +1,6 @@
 local diagnostics = require("roslyn-workspace-diagnostics.lsp.diagnostics")
 local diagnostics_identifier = require("roslyn-workspace-diagnostics.lsp.roslyn_diagnostic_identifiers")
+local config = require("roslyn-workspace-diagnostics.config")
 
 local M = {}
 
@@ -17,7 +18,10 @@ function M._stop_pulling(client_id)
 	end
 end
 
-function M._schedule_next_pull(client_id)
+function M._schedule_next_pull(client_id, is_refresh)
+	if is_refresh and config.options.on_diagnostic_refresh_start then
+		config.options.on_diagnostic_refresh_start(client_id)
+	end
 	if not client_timers[client_id] then
 		client_timers[client_id] = vim.uv.new_timer()
 	end
@@ -29,12 +33,12 @@ function M._schedule_next_pull(client_id)
 		2000,
 		0,
 		vim.schedule_wrap(function()
-			M._request_workspace_diagnostics(client_id)
+			M._request_workspace_diagnostics(client_id, is_refresh)
 		end)
 	)
 end
 
-function M._request_workspace_diagnostics(client_id)
+function M._request_workspace_diagnostics(client_id, is_refresh)
 	local client = vim.lsp.get_client_by_id(client_id)
 
 	if not client then
@@ -51,7 +55,10 @@ function M._request_workspace_diagnostics(client_id)
 	}, function(err, result, ctx, _)
 		M.active_request_tokens[token] = nil
 		diagnostics.handle_workspace_result(err, result, ctx, _)
-		M._schedule_next_pull(client_id)
+		if is_refresh and config.options.on_diagnostic_refresh_finish then
+			config.options.on_diagnostic_refresh_finish(client_id)
+		end
+		M._schedule_next_pull(client_id, false)
 	end)
 end
 

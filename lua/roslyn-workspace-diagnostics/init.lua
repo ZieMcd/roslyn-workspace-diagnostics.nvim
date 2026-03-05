@@ -14,7 +14,7 @@ local function register_handlers()
 		if client and vim.tbl_contains(config.options.roslyn_alias, client.name) then
 			pull_manager._stop_pulling(ctx.client_id)
 			diagnostics._reset_result_ids(ctx.client_id)
-			pull_manager._schedule_next_pull(ctx.client_id)
+			pull_manager._schedule_next_pull(ctx.client_id, true)
 			return vim.NIL
 		end
 
