@@ -39,6 +39,10 @@ require("roslyn-workspace-diagnostics").setup({
   -- LSP client names to treat as Roslyn
   roslyn_alias = { "easy_dotnet", "roslyn_ls", "roslyn" },
 
+  -- Called when the server requests a diagnostic refresh (e.g. after a build)
+  on_diagnostic_refresh_start = function(client_id) end,
+  on_diagnostic_refresh_finish = function(client_id) end,
+
   -- Watch .csproj files and notify Roslyn on changes
   csproj_watcher = {
     enabled = false,

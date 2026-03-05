@@ -57,14 +57,27 @@ Or call setup manually: >lua
 
 Pass options to `setup()`: >lua
   require("roslyn-workspace-diagnostics").setup({
-    enabled = true,
     roslyn_alias = { "easy_dotnet", "roslyn_ls", "roslyn" },
+    on_diagnostic_refresh_start = function(client_id) end,
+    on_diagnostic_refresh_finish = function(client_id) end,
     csproj_watcher = {
       enabled = false,
       find_csproj_files = nil,
     },
   })
 <
+
+                          *roslyn-workspace-diagnostics-on_diagnostic_refresh*
+on_diagnostic_refresh_start ~
+  Type: `fun(client_id: integer)` or `nil`, Default: `nil`
+  Called when the server sends a `workspace/diagnostic/refresh` request and
+  the plugin begins re-fetching diagnostics. Receives the LSP client ID.
+
+on_diagnostic_refresh_finish ~
+  Type: `fun(client_id: integer)` or `nil`, Default: `nil`
+  Called when the first workspace diagnostic response completes after a
+  refresh. Receives the LSP client ID.
+
                                   *roslyn-workspace-diagnostics-roslyn_alias*
 roslyn_alias ~
   Type: `string[]`, Default: `{ "easy_dotnet", "roslyn_ls", "roslyn" }`
