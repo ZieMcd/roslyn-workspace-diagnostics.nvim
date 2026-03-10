@@ -6,7 +6,7 @@ local result_ids = {}
 
 -- Tracking open files is a bit of hack.
 -- Their is a bit of weird behaviour when handling workspace diagnostics for open files, this is probably because neovim it self makes request for open files which mess with previous results ids
----@type table<integer, table<string, boolean>>
+---@type table<integer, table<string, integer>>
 local open_files = {}
 
 local protocol = require("vim.lsp.protocol")
@@ -189,7 +189,8 @@ function M._track_open(client_id, uri)
 	if not open_files[client_id] then
 		open_files[client_id] = {}
 	end
-	open_files[client_id][uri] = true
+	local bufnr = vim.uri_to_bufnr(uri)
+	open_files[client_id][uri] = bufnr
 end
 
 ---@param client_id integer
@@ -197,6 +198,19 @@ end
 function M._track_close(client_id, uri)
 	if open_files[client_id] then
 		open_files[client_id][uri] = nil
+	end
+end
+
+---@param client_id integer
+function M._refresh_open_files(client_id)
+	local files = open_files[client_id]
+	if not files then
+		return
+	end
+	for _, bufnr in pairs(files) do
+		if vim.api.nvim_buf_is_loaded(bufnr) then
+			vim.lsp.diagnostic._refresh(bufnr, client_id, false)
+		end
 	end
 end
 

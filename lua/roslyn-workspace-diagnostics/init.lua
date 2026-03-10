@@ -58,12 +58,23 @@ local function register_autocmds()
 				diagnostics._track_close(client_id, args.data.params.textDocument.uri)
 				return
 			end
+
+			--Neovim only pull diagnostics for open files, and workspace diagnostics does not return anything for open files.
+			--So we pull diagnostics for all open files
+			if args.data.method == "textDocument/didChange" then
+				diagnostics._refresh_open_files(client_id)
+				return
+			end
 		end,
 	})
 
 	vim.api.nvim_create_autocmd("LspDetach", {
 		callback = function(args)
-			pull_manager._stop_pulling(args.data.client_id)
+			local client_id = args.data.client_id
+			pull_manager._stop_pulling(client_id)
+			diagnostics._reset_result_ids(client_id)
+			local ns = vim.lsp.diagnostic.get_namespace(client_id, true)
+			vim.diagnostic.reset(ns)
 		end,
 	})
 end

@@ -19,7 +19,6 @@ By default, Neovim only pulls diagnostics for open buffers. This plugin polls Ro
 ## Requirements
 
 - This plugin only works with Microsoft's Roslyn LSP. It should work out of the box with [easy-dotnet](https://github.com/GustavEikaas/easy-dotnet.nvim), [roslyn.nvim](https://github.com/seblyng/roslyn.nvim) and the roslyn configuration in [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#roslyn_ls). If you have configured the LSP in some other way, be sure to add the name you used to the `roslyn_alias` config.
-- I recommend using the nightly build of Neovim, as of writing Neovim still will not refresh diagnostics for open buffers. There is currently an open PR [here](https://github.com/neovim/neovim/pull/38106#issuecomment-3977365096)
 
 ## Installation
 
