@@ -97,8 +97,8 @@ end
 --- @param uri string
 --- @param client_id integer
 --- @param diagnostics lsp.Diagnostic[]
---- @param is_pull boolean
-local function handle_diagnostics(uri, client_id, diagnostics, is_pull)
+--- @param pull_id boolean|string
+local function handle_diagnostics(uri, client_id, diagnostics, pull_id)
 	local fname = vim.uri_to_fname(uri)
 
 	if #diagnostics == 0 and vim.fn.bufexists(fname) == 0 then
@@ -110,8 +110,10 @@ local function handle_diagnostics(uri, client_id, diagnostics, is_pull)
 		return
 	end
 
-	local namespace = vim.lsp.diagnostic.get_namespace(client_id, is_pull)
+	vim.print("identifier " .. pull_id)
+	local namespace = vim.lsp.diagnostic.get_namespace(client_id, pull_id)
 
+	vim.print("namespace  id" .. namespace)
 	vim.diagnostic.set(namespace, bufnr, M.lsp_to_vim(diagnostics, bufnr, client_id))
 end
 
@@ -141,7 +143,8 @@ end
 ---@param err any
 ---@param result table
 ---@param ctx table
-function M.handle_workspace_result(err, result, ctx, _)
+---@param identifier string
+function M.handle_workspace_result(err, result, ctx, identifier)
 	if not result or not result.items then
 		return
 	end
@@ -155,7 +158,7 @@ function M.handle_workspace_result(err, result, ctx, _)
 		if
 			doc_report.kind ~= "unchanged" --[[ and not is_open ]]
 		then
-			handle_diagnostics(doc_report.uri, ctx.client_id, doc_report.items, true)
+			handle_diagnostics(doc_report.uri, ctx.client_id, doc_report.items, identifier)
 		end
 	end
 end

@@ -4,6 +4,7 @@ local pull_manager = require("roslyn-workspace-diagnostics.lsp.pull_manager")
 local config = require("roslyn-workspace-diagnostics.config")
 local diagnostics = require("roslyn-workspace-diagnostics.lsp.diagnostics")
 local watcher = require("roslyn-workspace-diagnostics.lsp.watcher")
+local diagnostics_identifier = require("roslyn-workspace-diagnostics.lsp.roslyn_diagnostic_identifiers")
 
 local function register_handlers()
 	local original_refresh = vim.lsp.handlers["workspace/diagnostic/refresh"]
@@ -30,7 +31,12 @@ local function register_progress_handler()
 
 	vim.lsp.handlers["$/progress"] = function(err, result, ctx, handler_config)
 		if pull_manager.active_request_tokens[result[1]] then
-			diagnostics.handle_workspace_result(nil, result[2], { client_id = ctx.client_id }, nil)
+			diagnostics.handle_workspace_result(
+				nil,
+				result[2],
+				{ client_id = ctx.client_id },
+				diagnostics_identifier.WorkspaceDocumentsAndProject
+			)
 			return
 		end
 

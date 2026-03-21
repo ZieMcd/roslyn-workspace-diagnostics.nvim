@@ -54,7 +54,7 @@ function M._request_workspace_diagnostics(client_id, is_refresh)
 		partialResultToken = token,
 	}, function(err, result, ctx, _)
 		M.active_request_tokens[token] = nil
-		diagnostics.handle_workspace_result(err, result, ctx, _)
+		diagnostics.handle_workspace_result(err, result, ctx, diagnostics_identifier.WorkspaceDocumentsAndProject)
 		if is_refresh and config.options.on_diagnostic_refresh_finish then
 			config.options.on_diagnostic_refresh_finish(client_id)
 		end
