@@ -1,35 +1,23 @@
 # roslyn-workspace-diagnostics.nvim
 
-This plugin enables automatic workspace-wide diagnostics for Microsoft's [Roslyn LSP](https://github.com/dotnet/roslyn/tree/main/src/LanguageServer/Microsoft.CodeAnalysis.LanguageServer) used in the [Visual Studio Code C# Extension](https://github.com/dotnet/vscode-csharp).
+This plugin aims in a somewhat hacky way to implement auto pulling of workspace diagnostics for Microsoft's new [Roslyn LSP](https://github.com/dotnet/roslyn/tree/main/src/LanguageServer/Microsoft.CodeAnalysis.LanguageServer) used in the [Visual Studio Code C# Extension](https://github.com/dotnet/vscode-csharp). 
 
-By default, Neovim only pulls diagnostics for open buffers. This plugin triggers `workspace/diagnostic` requests and re-polls every 2 seconds after completion, so you get errors and warnings across your entire project.
+In theory it should not be to difficult to get this to work with other LSPs that implement workspace diagnostics, if there is any interest we could make it more open.
 
-In theory it should not be too difficult to get this to work with other LSPs that implement workspace diagnostics. If there is any interest we could make it more generic.
+By default, Neovim only pulls diagnostics for open buffers. This plugin polls Roslyn with `workspace/diagnostic` requests every 2 seconds, so you get errors and warnings across your entire project.
 
 >[!IMPORTANT]
->This plugin is still in the early stages of development and is bound to be a bit buggy. There are a lot of scenarios I have not tested.
+>This plugin is still in the early stages of development and is bound to be a bit buggy, there are a lot of scenarios I have not tested.
 >If you run into any issues please raise an issue.
-
-## How it works
-
-Recent versions of Neovim added built-in support for `workspace/diagnostic` via `vim.lsp.buf.workspace_diagnostics()`. This plugin builds on top of that by:
-
-1. Calling `vim.lsp.buf.workspace_diagnostics()` to trigger an initial pull.
-2. Intercepting `client.request` to track when all in-flight `workspace/diagnostic` requests complete.
-3. Scheduling the next pull 2 seconds after all responses arrive, avoiding overlapping requests.
-
-This approach lets Neovim handle the actual request/response cycle and diagnostic rendering while the plugin just manages the polling loop.
-
-Previous versions of this plugin handled the full `workspace/diagnostic` request/response cycle manually, including partial result handling via `$/progress` and setting diagnostics on buffers directly. However, a Neovim update introduced its own built-in workspace diagnostic support, which conflicted with the plugin's custom implementation. Rather than fighting against Neovim's internals, the plugin was rewritten to delegate diagnostic handling to Neovim and focus solely on the polling loop.
 
 ## Features
 
-- Automatically polls for workspace diagnostics from Roslyn
-- Optional `.csproj` file watcher for live diagnostics on NuGet package changes
+- Pulls workspace diagnostics from Roslyn automatically
+- Handles partial results via `$/progress`, so you don't have to wait for all diagnostics at once 
+- Optional `.csproj` file watcher, so you get live diagnostics for NuGet package changes
 
 ## Requirements
 
-- Neovim nightly (requires `vim.lsp.buf.workspace_diagnostics()`)
 - This plugin only works with Microsoft's Roslyn LSP. It should work out of the box with [easy-dotnet](https://github.com/GustavEikaas/easy-dotnet.nvim), [roslyn.nvim](https://github.com/seblyng/roslyn.nvim) and the roslyn configuration in [nvim-lspconfig](https://github.com/neovim/nvim-lspconfig/blob/master/doc/configs.md#roslyn_ls). If you have configured the LSP in some other way, be sure to add the name you used to the `roslyn_alias` config.
 
 ## Installation
@@ -50,6 +38,10 @@ require("roslyn-workspace-diagnostics").setup({
   -- LSP client names to treat as Roslyn
   roslyn_alias = { "easy_dotnet", "roslyn_ls", "roslyn" },
 
+  -- Called when the server requests a diagnostic refresh (e.g. after a build)
+  on_diagnostic_refresh_start = function(client_id) end,
+  on_diagnostic_refresh_finish = function(client_id) end,
+
   -- Watch .csproj files and notify Roslyn on changes
   csproj_watcher = {
     enabled = false,
@@ -62,28 +54,28 @@ require("roslyn-workspace-diagnostics").setup({
 ### Configuration for the Roslyn LSP
 
 When you set up Roslyn you need to set up the background_analysis setting in order for workspace diagnostics to work. Here is an example with [seblj/roslyn.nvim](https://github.com/seblyng/roslyn.nvim):
-```lua
-{
-  "seblj/roslyn.nvim",
-  ft = { "cs", "csproj" },
-  opts = {
-    config = {
-      settings = {
-        -- ...
-        ["csharp|background_analysis"] = {
-          dotnet_analyzer_diagnostics_scope = "openFiles",
-          dotnet_compiler_diagnostics_scope = "fullSolution",
-        },
-        -- ...
-      },
-    },
-    -- ...
-  }
+``` {
+ "seblj/roslyn.nvim",
+ ft = { "cs", "csproj" },
+ opts = {
+   config = {
+     settings = {
+       -- ...
+       ["csharp|background_analysis"] = {
+         dotnet_analyzer_diagnostics_scope = "openFiles",
+         dotnet_compiler_diagnostics_scope = "fullSolution",
+       },
+       -- ...
+     },
+   },
+   -- ...
+ }
 }
 ```
 
 >[!IMPORTANT]
->I highly recommend configuring the Roslyn LSP with `dotnet_analyzer_diagnostics_scope = "openFiles"`. Setting it to `fullSolution` will have a significant impact on performance and might even cause the server to crash.
+>I highly recommend configuring the Roslyn LSP with `dotnet_analyzer_diagnostics_scope = "openFiles"`, setting it to `fullSolution` will have a significant impact on performance and might even cause the server to crash.
+
 
 ### Csproj Watcher
 
@@ -102,8 +94,8 @@ watcher.watch_file("/path/to/file.csproj")
 watcher.unwatch_file("/path/to/file.csproj")
 ```
 
-### Recommendations
+### Recommendations 
 If you're using C# and Neovim I recommend checking out
-- [GustavEikaas/easy-dotnet.nvim](https://github.com/GustavEikaas/easy-dotnet.nvim), a very extensive plugin for all your .Net needs, including full Roslyn LSP integration
-- [seblyng/roslyn.nvim](https://github.com/seblyng/roslyn.nvim), a minimal implementation for configuring the Roslyn LSP
-- [bosvik/roslyn-diagnostics.nvim](https://github.com/bosvik/roslyn-diagnostics.nvim), plugin providing an alternative way to get workspace diagnostics via autocmds
+- [GustavEikaas/easy-dotnet.nvim](https://github.com/GustavEikaas/easy-dotnet.nvim), A very extensive plugin for all your .Net needs, including full roslyn lsp integration
+- [seblyng/roslyn.nvim](https://github.com/seblyng/roslyn.nvim) a minimal implementations for configuring the roslyn lsp
+- [bosvik/roslyn-diagnostics.nvim](https://github.com/bosvik/roslyn-diagnostics.nvim), plugin providing an alternative way to get workspace diagnostics via auto cmds
