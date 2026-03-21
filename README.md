@@ -20,6 +20,8 @@ Recent versions of Neovim added built-in support for `workspace/diagnostic` via 
 
 This approach lets Neovim handle the actual request/response cycle and diagnostic rendering while the plugin just manages the polling loop.
 
+Previous versions of this plugin handled the full `workspace/diagnostic` request/response cycle manually, including partial result handling via `$/progress` and setting diagnostics on buffers directly. However, a Neovim update introduced its own built-in workspace diagnostic support, which conflicted with the plugin's custom implementation. Rather than fighting against Neovim's internals, the plugin was rewritten to delegate diagnostic handling to Neovim and focus solely on the polling loop.
+
 ## Features
 
 - Automatically polls for workspace diagnostics from Roslyn
