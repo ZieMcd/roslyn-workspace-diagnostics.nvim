@@ -8,23 +8,21 @@ CONTENTS                          *roslyn-workspace-diagnostics-contents*
   3. Setup ..................... |roslyn-workspace-diagnostics-setup|
   4. Configuration ............. |roslyn-workspace-diagnostics-configuration|
   5. Csproj Watcher ............ |roslyn-workspace-diagnostics-watcher|
+  6. How It Works .............. |roslyn-workspace-diagnostics-how-it-works|
 
 ==============================================================================
 1. INTRODUCTION                   *roslyn-workspace-diagnostics-introduction*
 
-This plugin implements auto-pulling of workspace diagnostics for Microsoft's
-Roslyn LSP server. By default Neovim only pulls diagnostics for open buffers.
-This plugin polls Roslyn with `workspace/diagnostic` requests every 2 seconds
-so you get errors and warnings across your entire project.
-
-The impenations tries to mimic vs code's implementation.
-
-Partial results are handled via `$/progress` so diagnostics arrive
-incrementally. Open files are excluded from workspace pulls to avoid
-conflicts with Neovim's built-in per-buffer diagnostics.
+This plugin enables automatic workspace-wide diagnostics for Microsoft's
+Roslyn LSP server. By default Neovim only pulls diagnostics for open
+buffers. This plugin triggers `workspace/diagnostic` requests and re-polls
+every 2 seconds after completion, so you get errors and warnings across
+your entire project.
 
 ==============================================================================
 2. REQUIREMENTS                   *roslyn-workspace-diagnostics-requirements*
+
+- Neovim nightly (requires `vim.lsp.buf.workspace_diagnostics()`)
 
 - A Roslyn-based LSP client such as:
   - easy-dotnet.nvim (https://github.com/GustavEikaas/easy-dotnet.nvim)
@@ -33,10 +31,6 @@ conflicts with Neovim's built-in per-buffer diagnostics.
 
   If you have configured the LSP under a different name, add it to
   |roslyn-workspace-diagnostics-roslyn_alias|.
-
-- Nightly Neovim is recommended. As of writing, Neovim does not
-  refresh diagnostics for open buffers only the current buffer. My This plugin
-  will also not fetch diagnostics for open buffer/files only un opened files
 
 ==============================================================================
 3. SETUP                          *roslyn-workspace-diagnostics-setup*
@@ -58,25 +52,12 @@ Or call setup manually: >lua
 Pass options to `setup()`: >lua
   require("roslyn-workspace-diagnostics").setup({
     roslyn_alias = { "easy_dotnet", "roslyn_ls", "roslyn" },
-    on_diagnostic_refresh_start = function(client_id) end,
-    on_diagnostic_refresh_finish = function(client_id) end,
     csproj_watcher = {
       enabled = false,
       find_csproj_files = nil,
     },
   })
 <
-
-                          *roslyn-workspace-diagnostics-on_diagnostic_refresh*
-on_diagnostic_refresh_start ~
-  Type: `fun(client_id: integer)` or `nil`, Default: `nil`
-  Called when the server sends a `workspace/diagnostic/refresh` request and
-  the plugin begins re-fetching diagnostics. Receives the LSP client ID.
-
-on_diagnostic_refresh_finish ~
-  Type: `fun(client_id: integer)` or `nil`, Default: `nil`
-  Called when the first workspace diagnostic response completes after a
-  refresh. Receives the LSP client ID.
 
                                   *roslyn-workspace-diagnostics-roslyn_alias*
 roslyn_alias ~
@@ -137,6 +118,29 @@ Example: >lua
   watcher.watch_file("/path/to/file.csproj")
   watcher.unwatch_file("/path/to/file.csproj")
 <
+
+==============================================================================
+6. HOW IT WORKS                   *roslyn-workspace-diagnostics-how-it-works*
+
+Recent versions of Neovim added built-in support for `workspace/diagnostic`
+via `vim.lsp.buf.workspace_diagnostics()`. This means Neovim now handles the
+request/response cycle and diagnostic rendering itself.
+
+This plugin builds on top of that by managing a polling loop:
+
+1. On `LspAttach`, the plugin monkey-patches `client.request` to track
+   in-flight `workspace/diagnostic` requests.
+2. When all pending requests for a client complete, it schedules the next
+   `vim.lsp.buf.workspace_diagnostics()` call after a 2-second delay.
+3. On `LspDetach`, the polling timer is stopped and cleaned up.
+
+Earlier versions of this plugin implemented the full `workspace/diagnostic`
+request/response cycle manually, including partial result handling via
+`$/progress` and setting diagnostics on buffers directly. A Neovim update
+introduced built-in workspace diagnostic support, which conflicted with
+the plugin's custom implementation. Rather than fighting against Neovim's
+internals, the plugin was rewritten to delegate diagnostic handling to
+Neovim and focus solely on the polling loop.
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:
