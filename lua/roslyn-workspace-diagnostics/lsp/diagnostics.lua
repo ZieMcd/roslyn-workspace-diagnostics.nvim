@@ -110,10 +110,8 @@ local function handle_diagnostics(uri, client_id, diagnostics, pull_id)
 		return
 	end
 
-	vim.print("identifier " .. pull_id)
 	local namespace = vim.lsp.diagnostic.get_namespace(client_id, pull_id)
 
-	vim.print("namespace  id" .. namespace)
 	vim.diagnostic.set(namespace, bufnr, M.lsp_to_vim(diagnostics, bufnr, client_id))
 end
 
