@@ -110,7 +110,7 @@ local function handle_diagnostics(uri, client_id, diagnostics, pull_id)
 		return
 	end
 
-	local namespace = vim.lsp.diagnostic.get_namespace(client_id, pull_id)
+	local namespace = vim.lsp.diagnostic.get_namespace(client_id, true, pull_id)
 
 	vim.diagnostic.set(namespace, bufnr, M.lsp_to_vim(diagnostics, bufnr, client_id))
 end
@@ -154,7 +154,7 @@ function M.handle_workspace_result(err, result, ctx, identifier)
 		end
 		-- local is_open = open_files[ctx.client_id] and M._open_files[ctx.client_id][doc_report.uri]
 		if
-			doc_report.kind ~= "unchanged" --[[ and not is_open ]]
+			 doc_report.kind ~= "unchanged" --[[ and not is_open ]]
 		then
 			handle_diagnostics(doc_report.uri, ctx.client_id, doc_report.items, identifier)
 		end
